@@ -1,0 +1,26 @@
+{
+  "name": "vaunch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "preview": "vp preview",
+    "test": "vp test --run",
+    "cap:sync": "npx cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.6.2",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.2",
+    "vue": "3.6.0-rc.16"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.6.2",
+    "@vizejs/vite-plugin": "0.797.0",
+    "typescript": "7.0.2",
+    "vite-plus": "1.8.0"
+  },
+  "packageManager": "npm@12.2.2"
+}

@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Web build outputs
+dist/
+*.local
+
+# Vite+ / Vize caches
+.vize/
+.vite/
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Android build artifacts (keep android/ project & gradle wrapper tracked)
+android/.gradle/
+android/local.properties
+android/captures/
+android/.idea/
+android/*.iml
+android/app/build/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/src/main/res/xml/config.xml
+
+# Logs
+npm-debug.log*
+*.log
