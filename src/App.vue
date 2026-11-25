@@ -267,7 +267,6 @@ onUnmounted(() => {
             </button>
 
             <button
-              v-if="app.isWebApk"
               type="button"
               class="btn btn-small"
               @click.stop="toggleMetadata(app.componentName)"
@@ -276,22 +275,31 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <div
-            v-if="app.isWebApk && expandedComponent === app.componentName"
-            class="webapk-details"
-          >
+          <div v-if="expandedComponent === app.componentName" class="webapk-details">
             <div class="webapk-summary">
+              <div>
+                種別:
+                {{
+                  app.isWebApk ? "WebAPK (Chromium 推定)" : app.isSystemApp ? "システムアプリ" : "通常アプリ"
+                }}
+              </div>
               <div>package: {{ app.packageName }}</div>
-              <div>startUrl: {{ app.webApk?.startUrl ?? "(未取得)" }}</div>
-              <div>scope: {{ app.webApk?.scope ?? "(未取得)" }}</div>
-              <div>themeColor: {{ app.webApk?.themeColor ?? "(未取得)" }}</div>
+              <div>component: {{ app.componentName }}</div>
+              <div v-if="app.targetSdkVersion !== undefined">
+                targetSdk: {{ app.targetSdkVersion }}
+              </div>
+              <template v-if="app.isWebApk">
+                <div>startUrl: {{ app.webApk?.startUrl ?? "(未取得)" }}</div>
+                <div>scope: {{ app.webApk?.scope ?? "(未取得)" }}</div>
+                <div>themeColor: {{ app.webApk?.themeColor ?? "(未取得)" }}</div>
+              </template>
             </div>
 
-            <div v-if="formatMetadataEntries(app.webApk).length === 0">
+            <div v-if="formatMetadataEntries(app).length === 0">
               GET_META_DATA: メタデータなし（または取得不可）
             </div>
             <ul v-else class="webapk-meta-list">
-              <li v-for="entry in formatMetadataEntries(app.webApk)" :key="entry.key">
+              <li v-for="entry in formatMetadataEntries(app)" :key="entry.key">
                 {{ entry.key }} ({{ entry.type }}): {{ entry.value }}
               </li>
             </ul>

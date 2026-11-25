@@ -4,6 +4,7 @@ import android.app.role.RoleManager
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.os.Build
@@ -63,6 +64,10 @@ class LauncherPlugin : Plugin() {
                     val componentName = info.componentName.flattenToString()
                     val label = info.label?.toString()?.takeIf { it.isNotBlank() } ?: pkg
                     val isWebApk = isLikelyWebApkPackage(pkg)
+                    val isSystemApp = (info.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+                    val targetSdkVersion = info.applicationInfo.targetSdkVersion
+
+                    val inspected = inspectPackageMetadata(packageManager, pkg, isWebApk)
 
                     val appObj = JSObject().apply {
                         put("packageName", pkg)
@@ -71,12 +76,14 @@ class LauncherPlugin : Plugin() {
                         // 本 PoC ではアイコン抽出・表示を省略する
                         put("icon", JSONObject.NULL)
                         put("isWebApk", isWebApk)
+                        put("isSystemApp", isSystemApp)
+                        put("targetSdkVersion", targetSdkVersion)
+                        put("metadata", inspected.metadata)
                     }
 
                     if (isWebApk) {
                         webApkCount += 1
-                        val webApkObj = inspectWebApkMetadata(packageManager, pkg)
-                        appObj.put("webApk", webApkObj)
+                        appObj.put("webApk", inspected.webApk)
                     }
 
                     appsArray.put(appObj)
@@ -223,9 +230,18 @@ class LauncherPlugin : Plugin() {
         return packageName.lowercase(Locale.ROOT).startsWith(WEBAPK_PACKAGE_PREFIX)
     }
 
-    private fun inspectWebApkMetadata(packageManager: PackageManager, packageName: String): JSObject {
-        val webApkObj = JSObject()
+    private data class InspectedMetadata(
+        val metadata: JSObject,
+        val webApk: JSObject?,
+    )
+
+    private fun inspectPackageMetadata(
+        packageManager: PackageManager,
+        packageName: String,
+        isWebApk: Boolean,
+    ): InspectedMetadata {
         val metadataObj = JSObject()
+        val webApkObj = if (isWebApk) JSObject() else null
 
         try {
             val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -240,51 +256,62 @@ class LauncherPlugin : Plugin() {
 
             val metaData: Bundle? = appInfo.metaData
             if (metaData == null || metaData.isEmpty) {
-                Log.i(WEBAPK_TAG, "package=$packageName metadata=empty")
-                webApkObj.put("metadata", metadataObj)
-                return webApkObj
+                if (isWebApk) {
+                    Log.i(WEBAPK_TAG, "package=$packageName metadata=empty")
+                    webApkObj?.put("metadata", metadataObj)
+                }
+                return InspectedMetadata(metadataObj, webApkObj)
             }
 
-            val keySummaries = mutableListOf<String>()
+            val keySummaries = if (isWebApk) mutableListOf<String>() else null
             for (key in metaData.keySet().sorted()) {
                 @Suppress("DEPRECATION")
                 val rawValue = metaData.get(key)
                 val typeName = rawValue?.javaClass?.simpleName ?: "null"
-                val valueStr = rawValue?.toString() ?: "null"
+                val rawStr = rawValue?.toString() ?: "null"
+                val valueStr = if (rawStr.length > MAX_METADATA_VALUE_LENGTH) {
+                    rawStr.take(MAX_METADATA_VALUE_LENGTH) + "..."
+                } else {
+                    rawStr
+                }
 
                 val entryObj = JSObject().apply {
                     put("type", typeName)
                     put("value", valueStr)
                 }
                 metadataObj.put(key, entryObj)
-                keySummaries.add("$key($typeName)=$valueStr")
+                keySummaries?.add("$key($typeName)=$valueStr")
             }
 
-            val startUrl = readMetadataString(metaData, META_KEY_START_URL)
-            val scope = readMetadataString(metaData, META_KEY_SCOPE)
-            val themeColor = readMetadataString(metaData, META_KEY_THEME_COLOR)
+            if (isWebApk && webApkObj != null) {
+                val startUrl = readMetadataString(metaData, META_KEY_START_URL)
+                val scope = readMetadataString(metaData, META_KEY_SCOPE)
+                val themeColor = readMetadataString(metaData, META_KEY_THEME_COLOR)
 
-            if (startUrl != null) {
-                webApkObj.put("startUrl", startUrl)
-            }
-            if (scope != null) {
-                webApkObj.put("scope", scope)
-            }
-            if (themeColor != null) {
-                webApkObj.put("themeColor", themeColor)
-            }
-            webApkObj.put("metadata", metadataObj)
+                if (startUrl != null) {
+                    webApkObj.put("startUrl", startUrl)
+                }
+                if (scope != null) {
+                    webApkObj.put("scope", scope)
+                }
+                if (themeColor != null) {
+                    webApkObj.put("themeColor", themeColor)
+                }
+                webApkObj.put("metadata", metadataObj)
 
-            Log.i(
-                WEBAPK_TAG,
-                "package=$packageName count=${keySummaries.size} startUrl=$startUrl scope=$scope themeColor=$themeColor entries=[${keySummaries.joinToString("; ")}]",
-            )
+                Log.i(
+                    WEBAPK_TAG,
+                    "package=$packageName count=${keySummaries?.size ?: 0} startUrl=$startUrl scope=$scope themeColor=$themeColor entries=[${keySummaries?.joinToString("; ") ?: ""}]",
+                )
+            }
         } catch (e: Exception) {
-            Log.w(WEBAPK_TAG, "package=$packageName metadata_error=${e.javaClass.simpleName}: ${e.message}")
-            webApkObj.put("metadata", metadataObj)
+            if (isWebApk) {
+                Log.w(WEBAPK_TAG, "package=$packageName metadata_error=${e.javaClass.simpleName}: ${e.message}")
+                webApkObj?.put("metadata", metadataObj)
+            }
         }
 
-        return webApkObj
+        return InspectedMetadata(metadataObj, webApkObj)
     }
 
     private fun readMetadataString(bundle: Bundle, key: String): String? {
@@ -303,5 +330,6 @@ class LauncherPlugin : Plugin() {
         private const val META_KEY_START_URL = "org.chromium.webapk.shell_apk.startUrl"
         private const val META_KEY_SCOPE = "org.chromium.webapk.shell_apk.scope"
         private const val META_KEY_THEME_COLOR = "org.chromium.webapk.shell_apk.themeColor"
+        private const val MAX_METADATA_VALUE_LENGTH = 512
     }
 }

@@ -1,15 +1,17 @@
 import { Capacitor, registerPlugin } from "@capacitor/core";
 
-export interface WebApkMetadataEntry {
+export interface AppMetadataEntry {
   type: string;
   value: string;
 }
+
+export type WebApkMetadataEntry = AppMetadataEntry;
 
 export interface WebApkInfo {
   startUrl?: string;
   scope?: string;
   themeColor?: string;
-  metadata?: Record<string, WebApkMetadataEntry>;
+  metadata?: Record<string, AppMetadataEntry>;
 }
 
 export interface LauncherApp {
@@ -18,6 +20,9 @@ export interface LauncherApp {
   label: string;
   icon: string | null;
   isWebApk: boolean;
+  isSystemApp?: boolean;
+  targetSdkVersion?: number;
+  metadata?: Record<string, AppMetadataEntry>;
   webApk?: WebApkInfo;
 }
 

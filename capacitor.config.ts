@@ -7,6 +7,12 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: false,
   },
+  plugins: {
+    SystemBars: {
+      style: "DARK",
+      initialViewportFitValueHint: "cover",
+    },
+  },
 };
 
 export default config;

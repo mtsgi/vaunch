@@ -1,4 +1,4 @@
-import type { LauncherApp, WebApkInfo } from "../plugins/launcher";
+import type { AppMetadataEntry, LauncherApp, WebApkInfo } from "../plugins/launcher";
 
 export const WEBAPK_PACKAGE_PREFIXES = ["org.chromium.webapk."] as const;
 
@@ -50,8 +50,11 @@ export interface FormattedMetadataEntry {
   value: string;
 }
 
-export function formatMetadataEntries(webApk?: WebApkInfo): FormattedMetadataEntry[] {
-  const metadata = webApk?.metadata;
+export function formatMetadataEntries(
+  source?: Pick<LauncherApp, "metadata" | "webApk"> | Pick<WebApkInfo, "metadata">,
+): FormattedMetadataEntry[] {
+  const metadata: Record<string, AppMetadataEntry> | undefined =
+    source && "webApk" in source ? (source.metadata ?? source.webApk?.metadata) : source?.metadata;
   if (!metadata) {
     return [];
   }

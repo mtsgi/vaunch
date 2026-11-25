@@ -128,6 +128,36 @@ describe("formatMetadataEntries", () => {
       { key: "z.key", type: "String", value: "z" },
     ]);
   });
+
+  it("supports LauncherApp with top-level metadata and webApk fallback", () => {
+    const regularApp = makeApp({
+      metadata: {
+        "com.example.flag": { type: "Boolean", value: "true" },
+      },
+    });
+    expect(formatMetadataEntries(regularApp)).toEqual([
+      { key: "com.example.flag", type: "Boolean", value: "true" },
+    ]);
+
+    const legacyWebApk = makeApp({
+      isWebApk: true,
+      webApk: {
+        metadata: {
+          "org.chromium.webapk.shell_apk.startUrl": {
+            type: "String",
+            value: "https://example.com/",
+          },
+        },
+      },
+    });
+    expect(formatMetadataEntries(legacyWebApk)).toEqual([
+      {
+        key: "org.chromium.webapk.shell_apk.startUrl",
+        type: "String",
+        value: "https://example.com/",
+      },
+    ]);
+  });
 });
 
 describe("createSingleFlightRunner", () => {
